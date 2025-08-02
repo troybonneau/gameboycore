@@ -11,9 +11,9 @@
 
 namespace gb
 {
-    static constexpr auto HBLANK_CYCLES = 207;
-    static constexpr auto OAM_ACCESS_CYCLES = 83;
-    static constexpr auto LCD_TRANSFER_CYCLES = 175;
+    static constexpr auto HBLANK_CYCLES = 204;
+    static constexpr auto OAM_ACCESS_CYCLES = 80;
+    static constexpr auto LCD_TRANSFER_CYCLES = 172;
 
     static constexpr auto LINE_CYCLES = 456;
     static constexpr auto VBLANK_LINE = 144;
@@ -192,7 +192,7 @@ namespace gb
             const auto background = tilemap_.getBackground(line_, cgb_enabled_);
 
             // get window overlay tile line
-            const auto window = tilemap_.getWindowOverlay(line_);
+            const auto window = tilemap_.getWindowOverlay(line_, cgb_enabled_);
             const auto wx = mmu_->read(memorymap::WX_REGISTER);
             const auto wy = mmu_->read(memorymap::WY_REGISTER);
 

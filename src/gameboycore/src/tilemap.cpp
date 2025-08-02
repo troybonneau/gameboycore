@@ -88,10 +88,11 @@ namespace gb
             return tileline;
         }
 
-        TileMap::Line TileMap::getWindowOverlay(int line)
+        TileMap::Line TileMap::getWindowOverlay(int line, bool cgb_enable)
         {
             static constexpr auto tiles_per_row = 32;
             static constexpr auto tile_height = 8;
+            static constexpr auto tile_width = 8;
 
             TileMap::Line tileline{};
 
@@ -100,20 +101,35 @@ namespace gb
 
             auto window_row = line - wy;
             auto tile_row = window_row / tile_height;
-            auto idx = 0;
+            auto pixel_row = window_row % tile_height;
 
+            auto idx = 0;
             auto start = getAddress(Map::WINDOW_OVERLAY);
 
             for (auto tile_col = 0; tile_col < 20; ++tile_col)
             {
                 auto tile_offset = start + ((tiles_per_row * tile_row) + tile_col);
-                auto tilenum = mmu_.read((uint16_t)tile_offset);
+                auto tilenum = mmu_.readVram(tile_offset, 0);
+                auto tileattr = cgb_enable ? mmu_.readVram(tile_offset, 1) : 0;
 
-                const auto pixel_row = tileram_.getRow(line % tile_height, tilenum, umode);
+                // Extract tile attributes
+                const auto palette_number = cgb_enable ? (tileattr & 0x07) : 0;
+                const auto character_bank = cgb_enable ? ((tileattr >> 3) & 0x01) : 0;
+                const auto flip_horizontal = cgb_enable && (tileattr & 0x20) != 0;
+                const auto flip_vertical = cgb_enable && (tileattr & 0x40) != 0;
+                const auto backgroud_priority = cgb_enable && (tileattr & 0x80) != 0;
 
-                for (const auto pixel : pixel_row)
+                if (flip_vertical)
+                    pixel_row = tile_height - pixel_row - 1;
+
+                auto row = tileram_.getRow(pixel_row, tilenum, umode, character_bank);
+
+                if (flip_horizontal)
+                    std::reverse(row.begin(), row.end());
+
+                for (const auto pixel : row)
                 {
-                    tileline[idx++] = pixel;
+                    tileline[idx++] = (uint8_t)(pixel | (palette_number << 2) | (backgroud_priority << 5));
                 }
             }
 
@@ -122,13 +138,12 @@ namespace gb
 
         void TileMap::drawSprites(
             std::array<Pixel, 160>& scanline,
-            std::array<uint8_t, 160>& info,
+            Line& info,
             int line,
             bool cgb_enable,
             std::array<std::array<gb::Pixel, 4>, 8>& cgb_palette)
         {
             OAM oam{ mmu_ };
-
             auto palette0 = palette_.get(mmu_.read(memorymap::OBP0_REGISTER));
             auto palette1 = palette_.get(mmu_.read(memorymap::OBP1_REGISTER));
 
@@ -137,70 +152,87 @@ namespace gb
                 sprite_cache_ = oam.getSprites();
             }
 
-            auto count = 0;
-
-            for (const auto& sprite : sprite_cache_)
+            // Collect indices of sprites that cover this line (Y overlap and visible X)
+            std::vector<std::size_t> candidates;
+            for (std::size_t idx = 0; idx < sprite_cache_.size(); ++idx)
             {
-                if (count > 10) break;
-
-
-                // check for out of bounds coordinates
+                const auto& sprite = sprite_cache_[idx];
                 if (sprite.x == 0 || sprite.x >= 168) continue;
                 if (sprite.y == 0 || sprite.y >= 160) continue;
 
-                auto x = sprite.x - 8;
-                auto y = sprite.y - 16;
-
-                // check if the sprite contains the line
+                auto y = static_cast<int>(sprite.y) - 16;
                 if (line >= y && line < y + sprite.height)
                 {
-                    // get the pixel row in tile
-                    auto row = line - y;
+                    candidates.push_back(idx);
+                }
+            }
 
-                    if (sprite.isVerticallyFlipped())
-                        row = sprite.height - row - 1;
+            // Sort candidates for selection: X ascending, then OAM index ascending
+            std::sort(candidates.begin(), candidates.end(), [&](std::size_t a, std::size_t b) {
+                const auto& sa = sprite_cache_[a];
+                const auto& sb = sprite_cache_[b];
+                if (sa.x != sb.x) return sa.x < sb.x;
+                return a < b;
+            });
 
-                    auto sprite_line = tileram_.getRow(row, sprite.tile, true, sprite.getCharacterBank());
+            // Limit to 10 sprites
+            if (candidates.size() > 10) candidates.resize(10);
 
-                    if (sprite.isHorizontallyFlipped())
-                        std::reverse(sprite_line.begin(), sprite_line.end());
+            // Draw in reverse order for correct priority (lowest priority first, highest on top)
+            for (auto rit = candidates.rbegin(); rit != candidates.rend(); ++rit)
+            {
+                auto idx = *rit;
+                const auto& sprite = sprite_cache_[idx];
 
-                    // get color palette for this sprite
+                auto x = static_cast<int>(sprite.x) - 8;
+                auto y = static_cast<int>(sprite.y) - 16;
 
-                    std::array<gb::Pixel, 4> palette;
+                // Row calculation with V flip
+                auto row = line - y;
+                if (sprite.isVerticallyFlipped())
+                    row = sprite.height - row - 1;
 
-                    if (cgb_enable)
+                // Tile index with 8x16 masking
+                uint8_t tilenum = sprite.tile;
+                if (sprite.height == 16)
+                {
+                    tilenum &= 0xFE;  // Mask LSB for correct top/bottom tiles
+                }
+
+                auto sprite_line = tileram_.getRow(row, tilenum, true, sprite.getCharacterBank());
+
+                // H flip
+                if (sprite.isHorizontallyFlipped())
+                    std::reverse(sprite_line.begin(), sprite_line.end());
+
+                // Palette selection
+                std::array<gb::Pixel, 4> palette;
+                if (cgb_enable)
+                {
+                    palette = cgb_palette[sprite.getCgbPalette()];
+                }
+                else
+                {
+                    palette = (sprite.paletteOBP0() == 0) ? palette0 : palette1;
+                }
+
+                for (auto i = 0; i < 8; ++i)
+                {
+                    if ((x + i) < 0 || (x + i) >= 160) continue;
+
+                    auto color = info[x + i] & 0x03;
+                    auto background_priority = static_cast<bool>((info[x + i] >> 5) & 0x01);
+
+                    if (sprite.hasPriority())
                     {
-                        palette = cgb_palette[sprite.getCgbPalette()];
+                        if (sprite_line[i] != 0 && !background_priority)
+                            scanline[x + i] = palette[sprite_line[i]];
                     }
                     else
                     {
-                        palette = (sprite.paletteOBP0() == 0) ? palette0 : palette1;
+                        if (color == 0 && sprite_line[i] != 0)
+                            scanline[x + i] = palette[sprite_line[i]];
                     }
-
-                    for (auto i = 0; i < 8; ++i)
-                    {
-                        // skip this pixel if outside the window
-                        if ((x + i) < 0 || (x + i) >= 160) continue;
-
-                        auto color = info[x + i] & 0x03;
-                        auto background_priority = (bool)(info[x + i] >> 2);
-
-                        if (sprite.hasPriority())
-                        {
-                            if (sprite_line[i] != 0 && !background_priority)
-                                scanline[x + i] = palette[sprite_line[i]];
-                        }
-                        else
-                        {
-                            // if priority is to the background the sprite is behind colors 1-3
-                            if (color == 0 && sprite_line[i] != 0)
-                                scanline[x + i] = palette[sprite_line[i]];
-                        }
-                        
-                    }
-
-                    count++;
                 }
             }
         }

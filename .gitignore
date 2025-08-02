@@ -6,3 +6,4 @@ Win32/*
 docs/html/*
 docs/xml/*
 docs/latex/*
+*.obj

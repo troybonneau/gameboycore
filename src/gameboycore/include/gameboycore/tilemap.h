@@ -42,7 +42,7 @@ namespace gb
             ~TileMap();
 
             Line getBackground(int line, bool cgb_enable);
-            Line getWindowOverlay(int line);
+            Line getWindowOverlay(int line, bool cgb_enable); 
 
             void drawSprites(std::array<Pixel, 160>& scanline, Line& color_line, int line, bool cgb_enable, std::array<std::array<gb::Pixel,4>,8>& cgb_palette);
 
