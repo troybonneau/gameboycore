@@ -109,7 +109,7 @@ namespace gb
             {
                 mbc_->write(value | 0x0F, addr);
             }
-            else if (addr == memorymap::DIVIDER_REGISER)
+            else if (addr == memorymap::DIVIDER_REGISTER)
             {
                 mbc_->write(0, addr);
             }

@@ -6,7 +6,7 @@ namespace gb
         controller_(mmu.get(memorymap::TIMER_CONTROLLER_REGISTER)),
         counter_(mmu.get(memorymap::TIMER_COUNTER_REGISTER)),
         modulo_(mmu.get(memorymap::TIMER_MODULO_REGISTER)),
-        divider_(mmu.get(memorymap::DIVIDER_REGISER)),
+        divider_(mmu.get(memorymap::DIVIDER_REGISTER)),
         t_clock_(0),
         base_clock_(0),
         div_clock_(0),
