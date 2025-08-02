@@ -112,6 +112,10 @@ namespace gb
             else if (addr == memorymap::DIVIDER_REGISER)
             {
                 mbc_->write(0, addr);
+                if (write_handlers_[addr - 0xFF00])
+                {
+                    write_handlers_[addr - 0xFF00](value, addr);
+                }
             }
             else
             {

@@ -12,6 +12,7 @@ namespace gb
         div_clock_(0),
         timer_interrupt_(mmu, InterruptProvider::Interrupt::TIMER)
     {
+        mmu.addWriteHandler(memorymap::DIVIDER_REGISER, [this](uint8_t, uint16_t) { reset(); });
     }
 
     void Timer::update(const uint8_t machine_cycles)
@@ -69,6 +70,14 @@ namespace gb
                 }
             }
         }
+    }
+
+    void Timer::reset()
+    {
+        divider_ = 0;
+        t_clock_ = 0;
+        base_clock_ = 0;
+        div_clock_ = 0;
     }
 
     Timer::~Timer()
