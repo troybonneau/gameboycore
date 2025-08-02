@@ -421,7 +421,11 @@ namespace gb
                 out(0xFF00 + load8Imm());
                 break;
             case 0xF0: // LDH A,(a8)
-                in(0xFF00 + load8Imm());
+                {
+                    auto addr = 0xFF00 + load8Imm();
+                    mmu_->read(pc_.val);
+                    in(addr);
+                }
                 break;
             case 0xE2: // LD (C),A
                 out(0xFF00 + bc_.lo);
@@ -433,7 +437,11 @@ namespace gb
                 out(load16Imm());
                 break;
             case 0xFA: // LD A,(a16)
-                in(load16Imm());
+                {
+                    auto addr = load16Imm();
+                    mmu_->read(pc_.val);
+                    in(addr);
+                }
                 break;
 
                 /* Increment Instruction */
@@ -1317,6 +1325,7 @@ namespace gb
                 bit(hl_.lo, 0);
                 break;
             case 0x46: // BIT 0,(HL)
+                mmu_->read(pc_.val);
                 bit(mmu_->read(hl_.val), 0);
                 break;
             case 0x47: // BIT 0,A
@@ -1342,6 +1351,7 @@ namespace gb
                 bit(hl_.lo, 1);
                 break;
             case 0x4E: // BIT 1,(HL)
+                mmu_->read(pc_.val);
                 bit(mmu_->read(hl_.val), 1);
                 break;
             case 0x4F: // BIT 1,A
@@ -1368,6 +1378,7 @@ namespace gb
                 bit(hl_.lo, 2);
                 break;
             case 0x56: // BIT 2,(HL)
+                mmu_->read(pc_.val);
                 bit(mmu_->read(hl_.val), 2);
                 break;
             case 0x57: // BIT 2,A
@@ -1394,6 +1405,7 @@ namespace gb
                 bit(hl_.lo, 3);
                 break;
             case 0x5E: // BIT 3,(HL)
+                mmu_->read(pc_.val);
                 bit(mmu_->read(hl_.val), 3);
                 break;
             case 0x5F: // BIT 3,A
@@ -1420,6 +1432,7 @@ namespace gb
                 bit(hl_.lo, 4);
                 break;
             case 0x66: // BIT 4,(HL)
+                mmu_->read(pc_.val);
                 bit(mmu_->read(hl_.val), 4);
                 break;
             case 0x67: // BIT 4,A
@@ -1446,6 +1459,7 @@ namespace gb
                 bit(hl_.lo, 5);
                 break;
             case 0x6E: // BIT 5,(HL)
+                mmu_->read(pc_.val);
                 bit(mmu_->read(hl_.val), 5);
                 break;
             case 0x6F: // BIT 5,A
@@ -1472,6 +1486,7 @@ namespace gb
                 bit(hl_.lo, 6);
                 break;
             case 0x76: // BIT 6,(HL)
+                mmu_->read(pc_.val);
                 bit(mmu_->read(hl_.val), 6);
                 break;
             case 0x77: // BIT 6,A
@@ -1497,6 +1512,7 @@ namespace gb
                 bit(hl_.lo, 7);
                 break;
             case 0x7E: // BIT 7,(HL)
+                mmu_->read(pc_.val);
                 bit(mmu_->read(hl_.val), 7);
                 break;
             case 0x7F: // BIT 7,A
