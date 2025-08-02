@@ -85,7 +85,7 @@ namespace gb{
             SC_REGISTER = 0xFF02,
 
             DIVIDER_LO_REGISTER = 0xFF03,
-            DIVIDER_REGISER     = 0xFF04,
+            DIVIDER_REGISTER     = 0xFF04,
 
             TIMER_COUNTER_REGISTER    = 0xFF05,
             TIMER_MODULO_REGISTER     = 0xFF06,
