@@ -29,6 +29,7 @@ namespace gb
 
     private:
         void tick();
+        void reset();
 
         uint8_t& controller_; // TAC
         uint8_t& counter_;    // TIMA
