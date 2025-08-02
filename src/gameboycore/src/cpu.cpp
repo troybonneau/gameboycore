@@ -421,8 +421,13 @@ namespace gb
                 out(0xFF00 + load8Imm());
                 break;
             case 0xF0: // LDH A,(a8)
-                in(0xFF00 + load8Imm());
+            {
+                auto addr = 0xFF00 + load8Imm();
+                cycle_count_++; // delay before memory read
+                in(addr);
+                cycles = opcode_page1[opcode] - 1;
                 break;
+            }
             case 0xE2: // LD (C),A
                 out(0xFF00 + bc_.lo);
                 break;
@@ -433,8 +438,13 @@ namespace gb
                 out(load16Imm());
                 break;
             case 0xFA: // LD A,(a16)
-                in(load16Imm());
+            {
+                auto addr = load16Imm();
+                cycle_count_++; // delay before memory read
+                in(addr);
+                cycles = opcode_page1[opcode] - 1;
                 break;
+            }
 
                 /* Increment Instruction */
 
@@ -1085,6 +1095,7 @@ namespace gb
         uint8_t decode2(uint8_t opcode)
         {
             uint8_t tmp;
+            int cycles = -1;
 
             switch (opcode)
             {
@@ -1317,7 +1328,9 @@ namespace gb
                 bit(hl_.lo, 0);
                 break;
             case 0x46: // BIT 0,(HL)
+                cycle_count_++;
                 bit(mmu_->read(hl_.val), 0);
+                cycles = opcode_page2[opcode] - 1;
                 break;
             case 0x47: // BIT 0,A
                 bit(af_.hi, 0);
@@ -1342,7 +1355,9 @@ namespace gb
                 bit(hl_.lo, 1);
                 break;
             case 0x4E: // BIT 1,(HL)
+                cycle_count_++;
                 bit(mmu_->read(hl_.val), 1);
+                cycles = opcode_page2[opcode] - 1;
                 break;
             case 0x4F: // BIT 1,A
                 bit(af_.hi, 1);
@@ -1368,7 +1383,9 @@ namespace gb
                 bit(hl_.lo, 2);
                 break;
             case 0x56: // BIT 2,(HL)
+                cycle_count_++;
                 bit(mmu_->read(hl_.val), 2);
+                cycles = opcode_page2[opcode] - 1;
                 break;
             case 0x57: // BIT 2,A
                 bit(af_.hi, 2);
@@ -1394,7 +1411,9 @@ namespace gb
                 bit(hl_.lo, 3);
                 break;
             case 0x5E: // BIT 3,(HL)
+                cycle_count_++;
                 bit(mmu_->read(hl_.val), 3);
+                cycles = opcode_page2[opcode] - 1;
                 break;
             case 0x5F: // BIT 3,A
                 bit(af_.hi, 3);
@@ -1420,7 +1439,9 @@ namespace gb
                 bit(hl_.lo, 4);
                 break;
             case 0x66: // BIT 4,(HL)
+                cycle_count_++;
                 bit(mmu_->read(hl_.val), 4);
+                cycles = opcode_page2[opcode] - 1;
                 break;
             case 0x67: // BIT 4,A
                 bit(af_.hi, 4);
@@ -1446,7 +1467,9 @@ namespace gb
                 bit(hl_.lo, 5);
                 break;
             case 0x6E: // BIT 5,(HL)
+                cycle_count_++;
                 bit(mmu_->read(hl_.val), 5);
+                cycles = opcode_page2[opcode] - 1;
                 break;
             case 0x6F: // BIT 5,A
                 bit(af_.hi, 5);
@@ -1472,7 +1495,9 @@ namespace gb
                 bit(hl_.lo, 6);
                 break;
             case 0x76: // BIT 6,(HL)
+                cycle_count_++;
                 bit(mmu_->read(hl_.val), 6);
+                cycles = opcode_page2[opcode] - 1;
                 break;
             case 0x77: // BIT 6,A
                 bit(af_.hi, 6);
@@ -1497,7 +1522,9 @@ namespace gb
                 bit(hl_.lo, 7);
                 break;
             case 0x7E: // BIT 7,(HL)
+                cycle_count_++;
                 bit(mmu_->read(hl_.val), 7);
+                cycles = opcode_page2[opcode] - 1;
                 break;
             case 0x7F: // BIT 7,A
                 bit(af_.hi, 7);
@@ -1940,7 +1967,9 @@ namespace gb
                 sendInstructionData(opcode, current_pc_, OpcodePage::PAGE2);
             }
 
-            return opcode_page2[opcode];
+            if (cycles == -1)
+                cycles = opcode_page2[opcode];
+            return (uint8_t)cycles;
         }
 
         void checkInterrupts()
